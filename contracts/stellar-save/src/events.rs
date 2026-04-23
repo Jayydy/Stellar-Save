@@ -93,22 +93,22 @@ pub struct ContractUnpaused {
     pub timestamp: u64,
 }
 
-/// Event emitted when a specific group is paused by its creator.
+/// Event emitted when a cycle starts.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GroupPaused {
+pub struct CycleStarted {
     pub group_id: u64,
-    pub paused_by: Address,
-    pub paused_at: u64,
+    pub cycle_id: u32,
+    pub started_at: u64,
 }
 
-/// Event emitted when a specific group is unpaused by its creator.
+/// Event emitted when a cycle ends (transitions to next).
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GroupUnpaused {
+pub struct CycleEnded {
     pub group_id: u64,
-    pub unpaused_by: Address,
-    pub unpaused_at: u64,
+    pub cycle_id: u32,
+    pub ended_at: u64,
 }
 
 /// Utility functions for emitting events.
@@ -251,22 +251,14 @@ impl EventEmitter {
         env.events().publish(("contract_unpaused",), event);
     }
 
-    pub fn emit_group_paused(env: &Env, group_id: u64, paused_by: Address, paused_at: u64) {
-        let event = GroupPaused {
-            group_id,
-            paused_by,
-            paused_at,
-        };
-        env.events().publish(("group_paused",), event);
+    pub fn emit_cycle_started(env: &Env, group_id: u64, cycle_id: u32, started_at: u64) {
+        let event = CycleStarted { group_id, cycle_id, started_at };
+        env.events().publish(("cycle_started",), event);
     }
 
-    pub fn emit_group_unpaused(env: &Env, group_id: u64, unpaused_by: Address, unpaused_at: u64) {
-        let event = GroupUnpaused {
-            group_id,
-            unpaused_by,
-            unpaused_at,
-        };
-        env.events().publish(("group_unpaused",), event);
+    pub fn emit_cycle_ended(env: &Env, group_id: u64, cycle_id: u32, ended_at: u64) {
+        let event = CycleEnded { group_id, cycle_id, ended_at };
+        env.events().publish(("cycle_ended",), event);
     }
 }
 
