@@ -47,3 +47,7 @@ export type { ContributionFlowProps } from "./ContributionFlow";
 export { WalletIntegration } from "./WalletIntegration";
 export { ActivityFeed } from "./ActivityFeed/ActivityFeed";
 export type { ActivityFeedProps } from "./ActivityFeed/ActivityFeed";
+export { MemberDirectory } from "./MemberDirectory";
+export type { MemberDirectoryProps } from "./MemberDirectory";
+export { TransactionConfirmModal } from "./TransactionConfirmModal";
+export type { TransactionConfirmModalProps, TransactionDetails, TxType, ConfirmationStep } from "./TransactionConfirmModal";
