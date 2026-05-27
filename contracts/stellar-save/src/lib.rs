@@ -501,7 +501,7 @@ impl StellarSaveContract {
             max_members,
             min_members,
             current_time,
-            0, // grace_period_seconds - using default of 0
+            grace_period_seconds,
         );
 
         // 8. Store Group Data
