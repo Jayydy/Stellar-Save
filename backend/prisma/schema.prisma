@@ -12,6 +12,10 @@ datasource db {
   provider = "postgresql"
 }
 
+
+
+
+
 model ContractEvent {
   id          String   @id @default(cuid())
   contractId  String
