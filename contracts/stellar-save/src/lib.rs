@@ -12456,29 +12456,21 @@ mod tests {
     #[test]
     fn test_update_group_metadata_name_too_short() {
         let env = Env::default();
-        let creator = Address::random(&env);
+        env.mock_all_auths();
+        let creator = Address::generate(&env);
         let group_id = 1u64;
-
-        let token_address = env
-            .register_stellar_asset_contract_v2(Address::generate(&env))
-            .address();
-        let group_id = client.create_group(&creator, &100, &3600, &2, &token_address);
-
-        let status_key = StorageKeyBuilder::group_status(group_id);
+        let group = Group::new(group_id, creator.clone(), 1_000_000, 604800, 10, 2, 0, 0);
         env.storage()
             .persistent()
-            .set(&status_key, &GroupStatus::Active);
-
-        let group_key = StorageKeyBuilder::group_data(group_id);
-        env.storage().persistent().set(&group_key, &group);
+            .set(&StorageKeyBuilder::group_data(group_id), &group);
 
         let result = StellarSaveContract::update_group_metadata(
-            env,
+            env.clone(),
             group_id,
             creator,
-            String::from_small_str("AB"),
-            String::from_small_str("Description"),
-            String::from_small_str("https://example.com/image.png"),
+            String::from_str(&env, "AB"),
+            String::from_str(&env, "Description"),
+            String::from_str(&env, "https://example.com/image.png"),
         );
 
         assert_eq!(result, Err(StellarSaveError::InvalidMetadata));
@@ -12487,34 +12479,25 @@ mod tests {
     #[test]
     fn test_update_group_metadata_name_too_long() {
         let env = Env::default();
-        let creator = Address::random(&env);
+        env.mock_all_auths();
+        let creator = Address::generate(&env);
         let group_id = 1u64;
-
-        let token_address = env
-            .register_stellar_asset_contract_v2(Address::generate(&env))
-            .address();
-        let group_id = client.create_group(&creator, &100, &3600, &2, &token_address);
-
-        // Set group to paused
-        let status_key = StorageKeyBuilder::group_status(group_id);
+        let group = Group::new(group_id, creator.clone(), 1_000_000, 604800, 10, 2, 0, 0);
         env.storage()
             .persistent()
-            .set(&status_key, &GroupStatus::Paused);
+            .set(&StorageKeyBuilder::group_data(group_id), &group);
 
-        let group_key = StorageKeyBuilder::group_data(group_id);
-        env.storage().persistent().set(&group_key, &group);
-
-        // Create a name longer than 50 characters
-        let long_name = String::from_small_str("This is a very long group name that exceeds fifty");
+        // 51 characters — exceeds the 50-char limit
+        let long_name = String::from_str(&env, "This is a very long group name that exceeds fifty!");
         assert!(long_name.len() > 50);
 
         let result = StellarSaveContract::update_group_metadata(
-            env,
+            env.clone(),
             group_id,
             creator,
             long_name,
-            String::from_small_str("Description"),
-            String::from_small_str("https://example.com/image.png"),
+            String::from_str(&env, "Description"),
+            String::from_str(&env, "https://example.com/image.png"),
         );
 
         assert_eq!(result, Err(StellarSaveError::InvalidMetadata));
@@ -12523,36 +12506,28 @@ mod tests {
     #[test]
     fn test_update_group_metadata_description_too_long() {
         let env = Env::default();
-        let creator = Address::random(&env);
+        env.mock_all_auths();
+        let creator = Address::generate(&env);
         let group_id = 1u64;
-
-        let token_address = env
-            .register_stellar_asset_contract_v2(Address::generate(&env))
-            .address();
-        let group_id = client.create_group(&creator, &100, &3600, &2, &token_address);
-
-        // Set group to active
-        let status_key = StorageKeyBuilder::group_status(group_id);
+        let group = Group::new(group_id, creator.clone(), 1_000_000, 604800, 10, 2, 0, 0);
         env.storage()
             .persistent()
-            .set(&status_key, &GroupStatus::Active);
+            .set(&StorageKeyBuilder::group_data(group_id), &group);
 
-        let group_key = StorageKeyBuilder::group_data(group_id);
-        env.storage().persistent().set(&group_key, &group);
-
-        // Create a description longer than 500 characters
-        let long_desc = String::from_small_str(
-            "This is a very long description that exceeds the maximum allowed length of five hundred characters. It contains a lot of text to ensure it goes over the limit. This is a very long description that exceeds the maximum allowed length of five hundred characters. It contains a lot of text to ensure it goes over the limit. This is a very long description that exceeds the maximum allowed length of five hundred characters. It contains a lot of text to ensure it goes over the limit.",
+        // 501 characters — exceeds the 500-char limit
+        let long_desc = String::from_str(
+            &env,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         );
         assert!(long_desc.len() > 500);
 
         let result = StellarSaveContract::update_group_metadata(
-            env,
+            env.clone(),
             group_id,
             creator,
-            String::from_small_str("Test Group"),
+            String::from_str(&env, "Test Group"),
             long_desc,
-            String::from_small_str("https://example.com/image.png"),
+            String::from_str(&env, "https://example.com/image.png"),
         );
 
         assert_eq!(result, Err(StellarSaveError::InvalidMetadata));
@@ -12561,31 +12536,22 @@ mod tests {
     #[test]
     fn test_update_group_metadata_unauthorized() {
         let env = Env::default();
-        let creator = Address::random(&env);
-        let other_user = Address::random(&env);
+        env.mock_all_auths();
+        let creator = Address::generate(&env);
+        let other_user = Address::generate(&env);
         let group_id = 1u64;
-
-        let token_address = env
-            .register_stellar_asset_contract_v2(Address::generate(&env))
-            .address();
-        let group_id = client.create_group(&creator, &100, &3600, &2, &token_address);
-
-        // Set group to completed (terminal state)
-        let status_key = StorageKeyBuilder::group_status(group_id);
+        let group = Group::new(group_id, creator.clone(), 1_000_000, 604800, 10, 2, 0, 0);
         env.storage()
             .persistent()
-            .set(&status_key, &GroupStatus::Completed);
-
-        let group_key = StorageKeyBuilder::group_data(group_id);
-        env.storage().persistent().set(&group_key, &group);
+            .set(&StorageKeyBuilder::group_data(group_id), &group);
 
         let result = StellarSaveContract::update_group_metadata(
-            env,
+            env.clone(),
             group_id,
             other_user,
-            String::from_small_str("Test Group"),
-            String::from_small_str("Description"),
-            String::from_small_str("https://example.com/image.png"),
+            String::from_str(&env, "Test Group"),
+            String::from_str(&env, "Description"),
+            String::from_str(&env, "https://example.com/image.png"),
         );
 
         assert_eq!(result, Err(StellarSaveError::Unauthorized));
@@ -12594,15 +12560,16 @@ mod tests {
     #[test]
     fn test_update_group_metadata_group_not_found() {
         let env = Env::default();
-        let creator = Address::random(&env);
+        env.mock_all_auths();
+        let creator = Address::generate(&env);
 
         let result = StellarSaveContract::update_group_metadata(
-            env,
+            env.clone(),
             999u64,
             creator,
-            String::from_small_str("Test Group"),
-            String::from_small_str("Description"),
-            String::from_small_str("https://example.com/image.png"),
+            String::from_str(&env, "Test Group"),
+            String::from_str(&env, "Description"),
+            String::from_str(&env, "https://example.com/image.png"),
         );
 
         assert_eq!(result, Err(StellarSaveError::GroupNotFound));
@@ -12611,24 +12578,24 @@ mod tests {
     #[test]
     fn test_update_group_metadata_empty_description_valid() {
         let env = Env::default();
-        let creator = Address::random(&env);
+        env.mock_all_auths();
+        let creator = Address::generate(&env);
         let group_id = 1u64;
+        let group = Group::new(group_id, creator.clone(), 1_000_000, 604800, 10, 2, 0, 0);
+        env.storage()
+            .persistent()
+            .set(&StorageKeyBuilder::group_data(group_id), &group);
 
-        let group = Group::new(
+        let result = StellarSaveContract::update_group_metadata(
+            env.clone(),
             group_id,
-            creator.clone(),
-            1_000_000,
-            604800,
-            10,
-            2,
-            env.ledger().timestamp(),
+            creator,
+            String::from_str(&env, "My Group"),
+            String::from_str(&env, ""),
+            String::from_str(&env, ""),
         );
 
-        let group_key = StorageKeyBuilder::group_data(group_id);
-        env.storage().persistent().set(&group_key, &group);
-
-        let retrieved = client.get_group_members(&1, &0, &100);
-        assert_eq!(retrieved.len(), 2);
+        assert_eq!(result, Ok(()));
     }
 
     // ── Dispute lifecycle tests ──────────────────────────────────────────────
