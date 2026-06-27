@@ -31,6 +31,7 @@ import { createWebhookRouter } from './routes/webhooks';
 import { getMemberReputation } from './reputation_service';
 import { createAuthRouter } from './routes/auth';
 import { createUserRouter } from './routes/user';
+import { createRampRouter } from './routes/ramp';
 
 const CSP_POLICY = [
   "default-src 'self'",
@@ -205,6 +206,9 @@ app.use('/api', versionMiddleware);
 app.use('/api/v1', createV1Router(services));
 app.use('/api/v2', createV2Router(services));
 app.use('/api/webhooks', createWebhookRouter());
+
+// ── Fiat ramp routes (strict rate limiting + CAPTCHA gate) ────────────────────
+app.use('/api/ramp', createRampRouter());
 
 // ── Member reputation endpoint (Issue #800) ───────────────────────────────────
 app.get('/api/members/:address/reputation', async (req, res) => {
