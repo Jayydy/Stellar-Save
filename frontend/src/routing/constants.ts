@@ -22,6 +22,7 @@ export const ROUTES = {
   LEADERBOARD: "/leaderboard",
   TEMPLATES: "/templates",
   ANALYTICS: "/analytics",
+  PLATFORM_ANALYTICS: "/platform-analytics",
   TRANSACTIONS: "/transactions",
   MEMBER_PROFILE: "/members/:address",
   ABOUT: "/about",

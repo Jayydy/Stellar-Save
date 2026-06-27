@@ -20,6 +20,7 @@ const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 const ErrorPage = lazy(() => import("../pages/ErrorPage"));
 const TemplateGalleryPage = lazy(() => import("../pages/TemplateGalleryPage"));
 const AnalyticsDashboardPage = lazy(() => import("../pages/AnalyticsDashboardPage"));
+const PlatformAnalyticsDashboard = lazy(() => import("../pages/PlatformAnalyticsDashboard"));
 const JoinViaInvite = lazy(() => import("../pages/JoinViaInvite"));
 const MemberProfilePage = lazy(() => import("../pages/MemberProfilePage"));
 const NotificationSettings = lazy(() => import("../pages/settings/NotificationSettings"));
@@ -148,6 +149,13 @@ export const routeConfig: RouteConfig[] = [
     protected: true,
     title: "Analytics - Stellar Save",
     description: "Your contribution analytics and statistics",
+  },
+  {
+    path: ROUTES.PLATFORM_ANALYTICS,
+    component: PlatformAnalyticsDashboard,
+    protected: true,
+    title: "Platform Analytics - Stellar Save",
+    description: "Platform-wide metrics and stakeholder insights",
   },
   {
     path: ROUTES.TRANSACTIONS,
