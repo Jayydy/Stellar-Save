@@ -2,9 +2,8 @@ import { lazy } from "react";
 import { ROUTES } from "./constants";
 import type { RouteConfig } from "./types";
 
-
-// Lazy load page components
 const HomePage = lazy(() => import("../pages/HomePage"));
+const LandingPage = lazy(() => import("../pages/LandingPage"));
 const DashboardPage = lazy(() => import("../pages/DashboardPage"));
 const GroupsPage = lazy(() => import("../pages/GroupsPage"));
 const GroupDetailPage = lazy(() => import("../pages/GroupDetailPage"));
@@ -12,12 +11,21 @@ const ProfilePage = lazy(() => import("../pages/ProfilePage"));
 const SettingsPage = lazy(() => import("../pages/SettingsPage"));
 const CreateGroupPage = lazy(() => import("../pages/CreateGroupPage"));
 const BrowseGroupsPage = lazy(() => import("../pages/BrowseGroupsPage"));
+const ContributionCalendarPage = lazy(() => import("../pages/ContributionCalendarPage"));
+const MemberDirectoryPage = lazy(() => import("../pages/MemberDirectoryPage"));
+const LeaderboardPage = lazy(() => import("../pages/LeaderboardPage"));
+const GroupComparisonPage = lazy(() => import("../pages/GroupComparisonPage"));
+const GroupAnalyticsPage = lazy(() => import("../pages/GroupAnalytics"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 const ErrorPage = lazy(() => import("../pages/ErrorPage"));
-/**
- * Centralized route configuration.
- * All application routes are defined here with their properties.
- */
+const TemplateGalleryPage = lazy(() => import("../pages/TemplateGalleryPage"));
+const AnalyticsDashboardPage = lazy(() => import("../pages/AnalyticsDashboardPage"));
+const JoinViaInvite = lazy(() => import("../pages/JoinViaInvite"));
+const MemberProfilePage = lazy(() => import("../pages/MemberProfilePage"));
+const NotificationSettings = lazy(() => import("../pages/settings/NotificationSettings"));
+const AboutPage = lazy(() => import("../pages/AboutPage"));
+const TransactionHistoryPage = lazy(() => import("../pages/TransactionHistoryPage"));
+
 export const routeConfig: RouteConfig[] = [
   {
     path: ROUTES.HOME,
@@ -25,6 +33,13 @@ export const routeConfig: RouteConfig[] = [
     protected: false,
     title: "Stellar Save - Secure DeFi Savings",
     description: "Transparent, on-chain savings powered by Stellar",
+  },
+  {
+    path: ROUTES.LANDING,
+    component: LandingPage,
+    protected: false,
+    title: "Welcome to Stellar Save",
+    description: "Community savings circles on Stellar",
   },
   {
     path: ROUTES.DASHBOARD,
@@ -55,13 +70,54 @@ export const routeConfig: RouteConfig[] = [
     description: "Discover and join public savings groups",
   },
   {
+    path: ROUTES.GROUP_CALENDAR,
+    component: ContributionCalendarPage,
+    protected: true,
+    title: "Contribution Calendar - Stellar Save",
+    description: "View contribution deadlines and payment history",
+  },
+  {
+    path: ROUTES.GROUPS_COMPARE,
+    component: GroupComparisonPage,
+    protected: true,
+    title: "Compare Groups - Stellar Save",
+    description: "Compare savings groups side-by-side before joining",
+  },
+  {
+    path: ROUTES.GROUP_ANALYTICS,
+    component: GroupAnalyticsPage,
+    protected: true,
+    title: "Group Analytics - Stellar Save",
+    description: "Detailed analytics for your savings group",
+  },
+  {
     path: ROUTES.GROUP_DETAIL,
     component: GroupDetailPage,
     protected: true,
     title: "Group Details - Stellar Save",
   },
   {
+    path: ROUTES.GROUP_MEMBERS,
+    component: MemberDirectoryPage,
+    protected: true,
+    title: "Member Directory - Stellar Save",
+    description: "Browse and search group members",
+  },
+  {
+    path: ROUTES.LEADERBOARD,
+    component: LeaderboardPage,
+    protected: true,
+    title: "Leaderboard - Stellar Save",
+    description: "Top-performing groups and contributors",
+  },
+  {
     path: ROUTES.PROFILE,
+    component: ProfilePage,
+    protected: true,
+    title: "Profile - Stellar Save",
+  },
+  {
+    path: ROUTES.PROFILE_DETAIL,
     component: ProfilePage,
     protected: true,
     title: "Profile - Stellar Save",
@@ -71,6 +127,55 @@ export const routeConfig: RouteConfig[] = [
     component: SettingsPage,
     protected: true,
     title: "Settings - Stellar Save",
+  },
+  {
+    path: ROUTES.SETTINGS_NOTIFICATIONS,
+    component: NotificationSettings,
+    protected: true,
+    title: "Notification Preferences - Stellar Save",
+    description: "Configure your notification preferences",
+  },
+  {
+    path: ROUTES.TEMPLATES,
+    component: TemplateGalleryPage,
+    protected: true,
+    title: "Group Templates - Stellar Save",
+    description: "Browse and use group templates",
+  },
+  {
+    path: ROUTES.ANALYTICS,
+    component: AnalyticsDashboardPage,
+    protected: true,
+    title: "Analytics - Stellar Save",
+    description: "Your contribution analytics and statistics",
+  },
+  {
+    path: ROUTES.TRANSACTIONS,
+    component: TransactionHistoryPage,
+    protected: true,
+    title: "Transaction History - Stellar Save",
+    description: "Your full transaction history",
+  },
+  {
+    path: ROUTES.GROUP_JOIN,
+    component: JoinViaInvite,
+    protected: false,
+    title: "Join Group - Stellar Save",
+    description: "Join a savings group via invitation link",
+  },
+  {
+    path: ROUTES.MEMBER_PROFILE,
+    component: MemberProfilePage,
+    protected: false,
+    title: "Member Profile - Stellar Save",
+    description: "View a member's contribution history and reputation",
+  },
+  {
+    path: ROUTES.ABOUT,
+    component: AboutPage,
+    protected: false,
+    title: "About - Stellar Save",
+    description: "Learn about Stellar Save",
   },
   {
     path: ROUTES.NOT_FOUND,

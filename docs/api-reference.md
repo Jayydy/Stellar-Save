@@ -4,6 +4,8 @@
 **Contract:** StellarSaveContract  
 **Platform:** Stellar Soroban
 
+> This document is supplemented by [Contract API Reference](contract-api-reference.md), which covers all public helper types and functions in `group.rs`, `contribution.rs`, and `payout.rs`.
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -223,7 +225,13 @@ pub fn create_group(
 - `Ok(u64)`: Unique group ID
 - `Err(StellarSaveError)`: Error if validation fails
 
+**Automatic Rounding:**
+- Contribution amounts are automatically rounded to the nearest 0.01 XLM (100,000 stroops) to prevent precision issues with very small amounts
+- For example: 100,050 stroops → 100,000 stroops, 150,001 stroops → 200,000 stroops
+- If the rounded amount is ≤ 0, the function returns `InvalidAmount` error
+
 **Errors:**
+- `InvalidAmount`: Contribution amount rounds to zero or is invalid
 - `InvalidState`: Parameters violate global configuration limits
 
 **Example:**
