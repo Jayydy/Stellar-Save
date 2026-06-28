@@ -28,6 +28,7 @@ const NotificationSettings = lazy(() => import("../pages/settings/NotificationSe
 const AboutPage = lazy(() => import("../pages/AboutPage"));
 const FeedbackAdminPage = lazy(() => import("../pages/FeedbackAdminPage"));
 const TransactionHistoryPage = lazy(() => import("../pages/TransactionHistoryPage"));
+const TransactionBuilderPage = lazy(() => import("../pages/TransactionBuilderPage"));
 
 export const routeConfig: RouteConfig[] = [
   {
@@ -165,6 +166,13 @@ export const routeConfig: RouteConfig[] = [
     protected: true,
     title: "Transaction History - Stellar Save",
     description: "Your full transaction history",
+  },
+  {
+    path: ROUTES.TRANSACTION_BUILDER,
+    component: TransactionBuilderPage,
+    protected: true,
+    title: "Transaction Builder - Stellar Save",
+    description: "Build and simulate multi-step transactions",
   },
   {
     path: ROUTES.GROUP_JOIN,
