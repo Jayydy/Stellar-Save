@@ -7,7 +7,8 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "test": "jest",
-    "test:integration": "jest --config jest.integration.config.js --runInBand"
+    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "test:sep24": "jest --config jest.integration.config.js --runInBand --testPathPattern=sep24-fiat-ramp"
   },
   "keywords": [],
   "author": "",
