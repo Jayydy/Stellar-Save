@@ -9,8 +9,8 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:coverage": "jest --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=cobertura --coverageReporters=json-summary",
-    "test:integration": "jest --config jest.integration.config.js --runInBand"
+    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "test:sep24": "jest --config jest.integration.config.js --runInBand --testPathPattern=sep24-fiat-ramp"
   },
   "keywords": [],
   "author": "",
