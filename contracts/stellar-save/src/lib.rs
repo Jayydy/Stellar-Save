@@ -1,5 +1,4 @@
 #![no_std]
-#![allow(deprecated)]
 
 //! # Stellar-Save Smart Contract
 //!
@@ -42,6 +41,7 @@ mod auto_contribution_tests;
 pub mod gas_benchmark;
 mod invitation_tests;
 mod merge_tests;
+mod migration_matrix_tests;
 mod migration_tests;
 mod milestone_tests;
 pub mod milestones;

@@ -18,8 +18,6 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { RecommendationEngine } from './recommendation';
-import { ABTestingFramework } from './ab_testing';
-import { Group, UserInteraction } from './models';
 import { EmailService } from './email_service';
 import { ExportService } from './export_service';
 import { BackupService, S3HttpClient } from './backup_service';
@@ -34,13 +32,20 @@ import { FeedbackService } from './feedback_service';
 import { createV2Router } from './routes/v2';
 import { metricsMiddleware, metricsHandler } from './metrics';
 import { requestLogger } from './logger';
+import { disconnectPrisma } from './prisma_client';
 import { createRateLimiterMiddleware, createAuthRateLimiterMiddleware } from './rate_limiter';
+import { createTieredRateLimiter, configureTier, setEndpointCost } from './redis_rate_limiter';
+import { createQuotaReporterRouter } from './routes/quota_reporter';
 import { createWebhookRouter } from './routes/webhooks';
 import { getMemberReputation } from './reputation_service';
 import { createAuthRouter } from './routes/auth';
 import { createUserRouter } from './routes/user';
 import { createRampRouter } from './routes/ramp';
 import { errorMiddleware, notFoundMiddleware } from './lib/errorMiddleware';
+import { AuditEventLog, auditMiddleware, createAuditRouter } from './audit_event_log';
+import { initWebSocketGateway } from './ws_gateway';
+import { initReconciliationService } from './reconciliation_service';
+import docsRouter from './docs';
 
 const CSP_POLICY = [
   "default-src 'self'",
@@ -62,6 +67,8 @@ app.use(express.json());
 app.use(compression());
 app.use(requestLogger);
 app.use(metricsMiddleware);
+// Tamper-evident audit log for all state-changing operations (Issue #1)
+app.use(auditMiddleware);
 
 // CSP middleware — applied to all responses
 app.use((_req, res, next) => {
@@ -69,8 +76,33 @@ app.use((_req, res, next) => {
   next();
 });
 
+configureTier('free', [
+  { windowMs: 60_000, max: config.rateLimiting.free.perMin, label: '1m' },
+  { windowMs: 3_600_000, max: config.rateLimiting.free.perHour, label: '1h' },
+]);
+configureTier('pro', [
+  { windowMs: 60_000, max: config.rateLimiting.pro.perMin, label: '1m' },
+  { windowMs: 3_600_000, max: config.rateLimiting.pro.perHour, label: '1h' },
+]);
+configureTier('enterprise', [
+  { windowMs: 60_000, max: config.rateLimiting.enterprise.perMin, label: '1m' },
+  { windowMs: 3_600_000, max: config.rateLimiting.enterprise.perHour, label: '1h' },
+]);
+
+setEndpointCost('/api/v1/health', 1, 'read');
+setEndpointCost('/api/v1/ready', 1, 'read');
+setEndpointCost('/api/v1/stats', 1, 'read');
+setEndpointCost('/api/v1/search', 5, 'read');
+setEndpointCost('/api/v1/export', 10, 'write');
+setEndpointCost('/api/v1/analytics', 5, 'read');
+setEndpointCost('/api/ramp/deposit', 10, 'sensitive');
+setEndpointCost('/api/ramp/initiate', 10, 'sensitive');
+setEndpointCost('/api/kyc/submit', 10, 'sensitive');
+setEndpointCost('/api/admin', 5, 'admin');
+setEndpointCost('/graphql', 2, 'read');
+
 app.get('/metrics', metricsHandler);
-app.use(createRateLimiterMiddleware());
+app.use(createTieredRateLimiter());
 
 // Stricter rate limiting on auth/admin endpoints: 10 req / 15 min per IP
 const authRateLimiter = createAuthRateLimiterMiddleware();
@@ -91,38 +123,6 @@ app.get('/api/cache/stats', async (req, res) => {
   const stats = await getCacheStats();
   res.json(stats);
 });
-
-// Example cached endpoint for retirements
-app.get('/api/retirements', cacheMiddleware(60), async (req, res) => {
-  res.json({ 
-    data: 'Retirements data - cached for 60 seconds', 
-    timestamp: new Date(),
-    source: 'database'
-  });
-});
-
-// Write endpoint that invalidates cache
-app.post('/api/retirements', async (req, res) => {
-  await clearCache('/api/retirements');
-  res.json({ 
-    success: true, 
-    message: 'Retirement created, cache cleared',
-    timestamp: new Date()
-  });
-});
-
-// Cached stats endpoint
-app.get('/api/stats', cacheMiddleware(3600), async (req, res) => {
-  res.json({
-    totalRetired: 1000,
-    totalTransactions: 45,
-    timestamp: new Date(),
-    source: 'database'
-  });
-});
-
-// Start cache warming job (preloads popular data)
-startWarmingJob();
 
 // ── GraphQL ───────────────────────────────────────────────────────────────────
 const schema = makeExecutableSchema({ typeDefs, resolvers });
@@ -150,22 +150,9 @@ apolloServer.start().then(() => {
 
 const PORT = config.port;
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
-const mockGroups: Group[] = [
-  { id: '1', name: 'Weekly Savers', contributionAmount: 100, cycleDuration: 604800, maxMembers: 10, currentMembers: 5, status: 'Active', tags: ['weekly', 'low-entry'] },
-  { id: '2', name: 'Monthly Builders', contributionAmount: 1000, cycleDuration: 2592000, maxMembers: 12, currentMembers: 3, status: 'Active', tags: ['monthly', 'high-entry'] },
-  { id: '3', name: 'Student Circle', contributionAmount: 50, cycleDuration: 604800, maxMembers: 5, currentMembers: 4, status: 'Active', tags: ['weekly', 'students'] },
-];
-
-const mockInteractions: UserInteraction[] = [
-  { userId: 'user1', groupId: '1', interactionType: 'join', timestamp: Date.now() },
-  { userId: 'user1', groupId: '2', interactionType: 'join', timestamp: Date.now() },
-  { userId: 'user2', groupId: '1', interactionType: 'join', timestamp: Date.now() },
-];
-
 // ── Services ─────────────────────────────────────────────────────────────────
+import { mockGroups, mockInteractions } from './mock_data';
 const engine = new RecommendationEngine(mockGroups, mockInteractions);
-const abTest = new ABTestingFramework();
 const emailService = new EmailService();
 const exportService = new ExportService(emailService, engine.getInteractions(), engine.getPreferences());
 const s3Client = new S3HttpClient();
@@ -181,46 +168,47 @@ const adminService = new AdminService();
 const webPushService = new WebPushService();
 
 const eventIndexer = new ContractEventIndexer(
-  process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org',
-  process.env.CONTRACT_ID || 'CA...', // Placeholder contract ID
-  process.env.DATABASE_URL || 'postgresql://user:pass@localhost:5432/stellar_save',
+  config.indexer.horizonUrl,
+  config.indexer.contractId,
+  config.database.url,
   webPushService
 );
 
-if (process.env.BACKUP_ENABLED === 'true') {
+if (config.backup.enabled) {
   backupScheduler.start();
   backupMonitor.start();
 }
 
 // Start the contract event indexer
-if (process.env.INDEXER_ENABLED === 'true') {
+if (config.indexer.enabled) {
   eventIndexer.start().catch(console.error);
 }
 
 // Start on-chain anomaly monitor
-if (process.env.ON_CHAIN_MONITOR_ENABLED === 'true') {
+if (config.onChainMonitor.enabled) {
   const onChainMonitor = new OnChainMonitor({
-    largePayoutThresholdStroops: BigInt(
-      process.env.ON_CHAIN_LARGE_PAYOUT_THRESHOLD_STROOPS ?? '100000000000'
-    ),
+    largePayoutThresholdStroops: config.onChainMonitor.largePayoutThresholdStroops,
   });
   onChainMonitor.start();
 }
 
 // Start analytics resync job if enabled
-if (process.env.ANALYTICS_RESYNC_ENABLED === 'true') {
-  startAnalyticsResyncJob(process.env.ANALYTICS_RESYNC_SCHEDULE || '0 * * * *'); // default: top of every hour
+if (config.analyticsResync.enabled) {
+  startAnalyticsResyncJob(config.analyticsResync.schedule);
 }
 
 // Start keeper/relayer for automated payout execution (Issue #1026)
 if (config.keeper.enabled) {
-  startKeeperJob(config.keeper.schedule, process.env.CONTRACT_ID || '', config.stellar.rpcUrl);
+  startKeeperJob(config.keeper.schedule, config.indexer.contractId, config.stellar.rpcUrl);
 }
 
-const services = { engine, abTest, exportService, backupService, backupScheduler, recoveryService, backupMonitor, eventIndexer };
+const services = { engine, exportService, backupService, backupScheduler, recoveryService, backupMonitor, eventIndexer };
 
 // ── Auth routes (public — no JWT required) ───────────────────────────────────
 app.use('/api/auth', createAuthRouter());
+
+// ── API Documentation routes ──────────────────────────────────────────────────
+app.use(docsRouter);
 
 // ── User routes (JWT protected) ───────────────────────────────────────────────
 app.use('/api/user', createUserRouter());
@@ -240,9 +228,7 @@ app.use('/api/v1', createV1Router(services));
 app.use('/api/v2', createV2Router(services));
 app.use('/api/webhooks', createWebhookRouter());
 app.use('/api/v1/costs', createCostRouter());
-
-// ── Fiat ramp routes (strict rate limiting + CAPTCHA gate) ────────────────────
-app.use('/api/ramp', createRampRouter());
+app.use('/api/v1/rate-limits', createQuotaReporterRouter());
 
 // ── Member reputation endpoint (Issue #800) ───────────────────────────────────
 app.get('/api/members/:address/reputation', async (req, res) => {
@@ -270,16 +256,19 @@ app.use((req, res, next) => {
 });
 app.use('/', createV1Router(services));
 
+// ── Admin audit-log routes (Issue #1 — event-sourcing audit log) ──────────────
+app.use('/api/admin/audit-log', createAuditRouter());
+
 // ── Error handling (must be last) ─────────────────────────────────────────────
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
-const hasTls = Boolean(process.env.TLS_KEY_PATH && process.env.TLS_CERT_PATH);
+const hasTls = Boolean(config.tls.keyPath && config.tls.certPath);
 const server = hasTls
   ? http2.createSecureServer(
       {
-        key: fs.readFileSync(process.env.TLS_KEY_PATH as string),
-        cert: fs.readFileSync(process.env.TLS_CERT_PATH as string),
+        key: fs.readFileSync(config.tls.keyPath as string),
+        cert: fs.readFileSync(config.tls.certPath as string),
         allowHTTP1: true,
       },
       app
@@ -289,13 +278,56 @@ const server = hasTls
 server.listen(PORT, async () => {
   console.log(`API server running on port ${PORT}`);
   console.log(`  HTTP/2 enabled${hasTls ? ' (TLS)' : ' (h2c cleartext)'}.`);
-  console.log(`  Versioned:  /api/v1/...  /api/v2/...`);
-  console.log(`  Legacy:     /health  /recommendations  etc. (deprecated)`);
+  console.log(`  Versioned:  /api/v1/...  /api/v2/...`)
   console.log(`  Cache stats: http://localhost:${PORT}/api/cache/stats`);
 
   // Start fraud detection worker (Issue #1028)
-  if (process.env.FRAUD_DETECTION_ENABLED !== 'false') {
+  if (config.fraud.enabled) {
     await fraudDetectionWorker.start();
+  }
+
+  // ── Issue #2: WebSocket gateway for real-time event streaming ──────────────
+  const wsGateway = initWebSocketGateway(server as any);
+  console.log(`  WebSocket:  ws://localhost:${PORT}/ws?token=<jwt>`);
+
+  // Patch the ContractEventIndexer to publish events to the WS gateway
+  // after each indexed event.  We do this post-init to avoid circular deps.
+  const origStoreEvent = (eventIndexer as any).storeEvent?.bind(eventIndexer);
+  if (origStoreEvent) {
+    (eventIndexer as any).storeEvent = async (event: any) => {
+      await origStoreEvent(event);
+      // Publish to WebSocket subscribers
+      try {
+        const data = event.data ?? {};
+        wsGateway.publishContractEvent({
+          contractId: event.contractId || event.contract_id || '',
+          eventType: event.type || event.eventType || 'unknown',
+          data,
+          txHash: event.transactionHash || event.txHash || '',
+          ledgerSeq: event.ledger || event.ledgerSeq || 0,
+          timestamp: event.createdAt ? new Date(event.createdAt) : new Date(),
+        });
+      } catch { /* non-blocking */ }
+    };
+  }
+
+  // ── Issue #1: Start audit chain integrity verification job ────────────────
+  if (process.env.AUDIT_VERIFY_ENABLED !== 'false') {
+    const auditIntervalMs = parseInt(process.env.AUDIT_VERIFY_INTERVAL_MS ?? String(60 * 60 * 1000));
+    AuditEventLog.startVerificationJob(auditIntervalMs);
+    console.log(`  Audit:      integrity verification every ${auditIntervalMs / 60000} min`);
+  }
+
+  // ── Issue #3: Start reconciliation service ────────────────────────────────
+  if (process.env.RECONCILIATION_ENABLED === 'true') {
+    const reconciliation = initReconciliationService({
+      contractId: process.env.CONTRACT_ID ?? '',
+      sampleSize: parseInt(process.env.RECONCILIATION_SAMPLE_SIZE ?? '50'),
+      driftThreshold: parseInt(process.env.RECONCILIATION_DRIFT_THRESHOLD ?? '3'),
+      intervalMs: parseInt(process.env.RECONCILIATION_INTERVAL_MS ?? String(15 * 60 * 1000)),
+    });
+    reconciliation.start();
+    console.log(`  Reconciliation: drift check every ${parseInt(process.env.RECONCILIATION_INTERVAL_MS ?? String(15 * 60 * 1000)) / 60000} min`);
   }
 });
 
@@ -303,6 +335,7 @@ server.listen(PORT, async () => {
 process.on('SIGTERM', () => {
   fraudDetectionWorker.stop();
   server.close();
+  disconnectPrisma().catch(() => {});
 });
 
 export { app }; 
