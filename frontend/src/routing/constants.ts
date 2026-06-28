@@ -25,6 +25,7 @@ export const ROUTES = {
   ANALYTICS: "/analytics",
   PLATFORM_ANALYTICS: "/platform-analytics",
   TRANSACTIONS: "/transactions",
+  TRANSACTION_BUILDER: "/transactions/builder",
   MEMBER_PROFILE: "/members/:address",
   ABOUT: "/about",
   FEEDBACK_ADMIN: "/admin/feedback",
