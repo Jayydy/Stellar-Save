@@ -11,6 +11,7 @@ import { RecoveryService } from '../recovery_service';
 import { BackupMonitor } from '../backup_monitor';
 import { ContractEventIndexer } from '../contract_event_indexer';
 import { AnalyticsService } from '../analytics_service';
+import { FeedbackService } from '../feedback_service';
 import { createAnalyticsMiddlewareStack, createAnalyticsCacheMiddleware } from '../analytics_middleware';
 import { Group, UserInteraction, UserPreference } from '../models';
 import { createNotificationRouter } from './notifications';
@@ -30,6 +31,7 @@ export interface V1Services {
   backupMonitor: BackupMonitor;
   eventIndexer: ContractEventIndexer;
   analyticsService: AnalyticsService;
+  feedbackService: FeedbackService;
 }
 
 export function createV1Router(services: V1Services): Router {
@@ -44,6 +46,7 @@ export function createV1Router(services: V1Services): Router {
     backupMonitor,
     eventIndexer,
     analyticsService,
+    feedbackService,
   } = services;
 
   // Setup analytics middleware
