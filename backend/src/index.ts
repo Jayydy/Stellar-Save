@@ -1,3 +1,10 @@
+// ── Distributed tracing ───────────────────────────────────────────────────────
+// MUST be the very first import so OpenTelemetry can patch instrumented libraries
+// (express, http, pg, ioredis, …) before they are required. No-op when tracing
+// is disabled (the default).
+import { startTracing } from './tracing';
+startTracing();
+
 import fs from 'fs';
 import http2 from 'http2';
 import dotenv from 'dotenv';
@@ -23,6 +30,7 @@ import { ContractEventIndexer } from './contract_event_indexer';
 import { WebPushService } from './web_push_service';
 import { versionMiddleware } from './versioning';
 import { createV1Router } from './routes/v1';
+import { FeedbackService } from './feedback_service';
 import { createV2Router } from './routes/v2';
 import { metricsMiddleware, metricsHandler } from './metrics';
 import { requestLogger } from './logger';
@@ -191,6 +199,16 @@ if (process.env.INDEXER_ENABLED === 'true') {
   eventIndexer.start().catch(console.error);
 }
 
+// Start on-chain anomaly monitor
+if (process.env.ON_CHAIN_MONITOR_ENABLED === 'true') {
+  const onChainMonitor = new OnChainMonitor({
+    largePayoutThresholdStroops: BigInt(
+      process.env.ON_CHAIN_LARGE_PAYOUT_THRESHOLD_STROOPS ?? '100000000000'
+    ),
+  });
+  onChainMonitor.start();
+}
+
 // Start analytics resync job if enabled
 if (process.env.ANALYTICS_RESYNC_ENABLED === 'true') {
   startAnalyticsResyncJob(process.env.ANALYTICS_RESYNC_SCHEDULE || '0 * * * *'); // default: top of every hour
@@ -223,6 +241,10 @@ app.use('/api', versionMiddleware);
 app.use('/api/v1', createV1Router(services));
 app.use('/api/v2', createV2Router(services));
 app.use('/api/webhooks', createWebhookRouter());
+app.use('/api/v1/costs', createCostRouter());
+
+// ── Fiat ramp routes (strict rate limiting + CAPTCHA gate) ────────────────────
+app.use('/api/ramp', createRampRouter());
 
 // ── Member reputation endpoint (Issue #800) ───────────────────────────────────
 app.get('/api/members/:address/reputation', async (req, res) => {
