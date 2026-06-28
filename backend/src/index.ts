@@ -32,6 +32,7 @@ import { getMemberReputation } from './reputation_service';
 import { createAuthRouter } from './routes/auth';
 import { createUserRouter } from './routes/user';
 import { createRampRouter } from './routes/ramp';
+import { errorMiddleware, notFoundMiddleware } from './lib/errorMiddleware';
 
 const CSP_POLICY = [
   "default-src 'self'",
@@ -236,6 +237,10 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/', createV1Router(services));
+
+// ── Error handling (must be last) ─────────────────────────────────────────────
+app.use(notFoundMiddleware);
+app.use(errorMiddleware);
 
 const hasTls = Boolean(process.env.TLS_KEY_PATH && process.env.TLS_CERT_PATH);
 const server = hasTls
