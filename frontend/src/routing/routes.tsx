@@ -30,6 +30,8 @@ const FeedbackAdminPage = lazy(() => import("../pages/FeedbackAdminPage"));
 const TransactionHistoryPage = lazy(() => import("../pages/TransactionHistoryPage"));
 const TransactionBuilderPage = lazy(() => import("../pages/TransactionBuilderPage"));
 const HardwareWalletPage = lazy(() => import("../pages/HardwareWalletPage"));
+const DepositPage = lazy(() => import("../pages/DepositPage"));
+const WithdrawPage = lazy(() => import("../pages/WithdrawPage"));
 
 export const routeConfig: RouteConfig[] = [
   {
@@ -181,6 +183,20 @@ export const routeConfig: RouteConfig[] = [
     protected: true,
     title: "Hardware Wallet - Stellar Save",
     description: "Connect and manage Ledger/Trezor hardware wallets",
+  },
+  {
+    path: ROUTES.DEPOSIT,
+    component: DepositPage,
+    protected: true,
+    title: "Buy Crypto - Stellar Save",
+    description: "Purchase XLM or stablecoins via bank transfer",
+  },
+  {
+    path: ROUTES.WITHDRAW,
+    component: WithdrawPage,
+    protected: true,
+    title: "Sell Crypto - Stellar Save",
+    description: "Withdraw crypto to your bank account",
   },
   {
     path: ROUTES.GROUP_JOIN,

@@ -30,6 +30,8 @@ export const ROUTES = {
   MEMBER_PROFILE: "/members/:address",
   ABOUT: "/about",
   FEEDBACK_ADMIN: "/admin/feedback",
+  DEPOSIT: "/ramp/deposit",
+  WITHDRAW: "/ramp/withdraw",
   NOT_FOUND: "/404",
   ERROR: "/500",
 } as const;
@@ -50,4 +52,6 @@ export const buildRoute = {
   groupJoin: (inviteCode: string) => `/join/${inviteCode}`,
   appDownload: (inviteCode: string) => `/app/${inviteCode}`,
   memberProfile: (address: string) => `/members/${address}`,
+  deposit: () => `/ramp/deposit`,
+  withdraw: () => `/ramp/withdraw`,
 } as const;

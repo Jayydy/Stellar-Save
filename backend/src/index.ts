@@ -43,6 +43,8 @@ import { getMemberReputation } from './reputation_service';
 import { createAuthRouter } from './routes/auth';
 import { createUserRouter } from './routes/user';
 import { createRampRouter } from './routes/ramp';
+import { createSep31Router } from './routes/sep31';
+import { rampProtection } from './fiat_ramp_protection';
 import { errorMiddleware, notFoundMiddleware } from './lib/errorMiddleware';
 import { AuditEventLog, auditMiddleware, createAuditRouter } from './audit_event_log';
 import { initWebSocketGateway } from './ws_gateway';
@@ -97,7 +99,8 @@ setEndpointCost('/api/v1/search', 5, 'read');
 setEndpointCost('/api/v1/export', 10, 'write');
 setEndpointCost('/api/v1/analytics', 5, 'read');
 setEndpointCost('/api/ramp/deposit', 10, 'sensitive');
-setEndpointCost('/api/ramp/initiate', 10, 'sensitive');
+setEndpointCost('/api/ramp/withdraw', 10, 'sensitive');
+setEndpointCost('/api/ramp/:id/status', 5, 'read');
 setEndpointCost('/api/kyc/submit', 10, 'sensitive');
 setEndpointCost('/api/admin', 5, 'admin');
 setEndpointCost('/graphql', 2, 'read');
@@ -259,8 +262,8 @@ app.use('/api/user', createUserRouter());
 // ── KYC routes (Issue #1024) ──────────────────────────────────────────────────
 app.use('/api/kyc', createKycRouter());
 
-// ── Fiat ramp routes (Issue #1023) ────────────────────────────────────────────
-app.use('/api/ramp', createRampRouter());
+// ── Fiat ramp routes (strict rate limiting + CAPTCHA gate + KYC gate) ──────────
+app.use('/api/ramp', rampProtection(), createRampRouter());
 
 // ── SEP-31 cross-border routes (Issue #1025) ──────────────────────────────────
 app.use('/api/sep31', createSep31Router());
@@ -272,9 +275,6 @@ app.use('/api/v2', createV2Router(services));
 app.use('/api/webhooks', createWebhookRouter());
 app.use('/api/v1/costs', createCostRouter());
 app.use('/api/v1/rate-limits', createQuotaReporterRouter());
-
-// ── Fiat ramp routes (strict rate limiting + CAPTCHA gate) ────────────────────
-app.use('/api/ramp', createRampRouter());
 
 // ── Member reputation endpoint (Issue #800) ───────────────────────────────────
 app.get('/api/members/:address/reputation', async (req, res) => {
